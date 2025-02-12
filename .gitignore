@@ -171,3 +171,4 @@ cython_debug/
 .pypirc
 
 experiences.txt
+q_table.txt
