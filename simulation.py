@@ -3,6 +3,7 @@ from gymnasium.wrappers import TimeLimit
 from gymnasium.wrappers import RecordVideo
 from agent import Agent
 
+EXPERIMENT_NAME = "taxi-low-alpha-high-gamma"
 ENV_NAME = "Taxi-v3"
 MAX_EPISODES = 1000
 MAX_STEPS = 200
@@ -17,9 +18,9 @@ env = RecordVideo(env, video_folder="videos", episode_trigger=lambda t: t % (MAX
 agent = Agent(env, LEARNING_RATE, INITIAL_EPSILON, EPSILON_DECAY, FINAL_EPSILON, DISCOUNT_FACTOR)
 
 def reset_log_files():
-    with open("experiences.txt", "w") as f:
+    with open(f"logging/{EXPERIMENT_NAME}-experiences.txt", "w") as f:
         f.write("")
-    with open("q_table.txt", "w") as f:
+    with open(f"logging/{EXPERIMENT_NAME}-q_table.txt", "w") as f:
         f.write("")
 
 def log_experience(state, action, reward, next_state, done):
@@ -30,12 +31,12 @@ def log_experience(state, action, reward, next_state, done):
         "next_state": next_state,
         "done": done
     }
-    with open("experiences.txt", "a") as f:
+    with open(f"logging/{EXPERIMENT_NAME}-experiences.txt", "a") as f:
         f.write(str(experience))
         f.write("\n")
 
 def log_q_table():
-    with open("q_table.txt", "a") as f:
+    with open(f"logging/{EXPERIMENT_NAME}-q_table.txt", "a") as f:
         f.write(str(agent.q_values))
         f.write("\n")
 
