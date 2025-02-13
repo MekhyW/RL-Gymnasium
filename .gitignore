@@ -172,3 +172,4 @@ cython_debug/
 
 experiences.txt
 q_table.txt
+videos/*

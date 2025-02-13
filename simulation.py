@@ -1,5 +1,6 @@
 import gymnasium as gym
 from gymnasium.wrappers import TimeLimit
+from gymnasium.wrappers import RecordVideo
 from agent import Agent
 
 ENV_NAME = "Taxi-v3"
@@ -10,8 +11,9 @@ INITIAL_EPSILON = 1.0
 EPSILON_DECAY = INITIAL_EPSILON / (MAX_EPISODES / 2)
 FINAL_EPSILON = 0.01
 DISCOUNT_FACTOR = 0.95
-env = gym.make(ENV_NAME, render_mode="human").env
+env = gym.make(ENV_NAME, render_mode="rgb_array").env
 env = TimeLimit(env, max_episode_steps=MAX_STEPS)
+env = RecordVideo(env, video_folder="videos", episode_trigger=lambda t: t % (MAX_STEPS/2) == 0)
 agent = Agent(env, LEARNING_RATE, INITIAL_EPSILON, EPSILON_DECAY, FINAL_EPSILON, DISCOUNT_FACTOR)
 
 def log_experience(state, action, reward, next_state, done):
