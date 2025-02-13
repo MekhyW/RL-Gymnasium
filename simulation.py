@@ -16,6 +16,12 @@ env = TimeLimit(env, max_episode_steps=MAX_STEPS)
 env = RecordVideo(env, video_folder="videos", episode_trigger=lambda t: t % (MAX_STEPS/2) == 0)
 agent = Agent(env, LEARNING_RATE, INITIAL_EPSILON, EPSILON_DECAY, FINAL_EPSILON, DISCOUNT_FACTOR)
 
+def reset_log_files():
+    with open("experiences.txt", "w") as f:
+        f.write("")
+    with open("q_table.txt", "w") as f:
+        f.write("")
+
 def log_experience(state, action, reward, next_state, done):
     experience = {
         "state": state,
@@ -33,6 +39,7 @@ def log_q_table():
         f.write(str(agent.q_values))
         f.write("\n")
 
+reset_log_files()
 for i in range(MAX_EPISODES):
     print(f"Episode {i}")
     state, info = env.reset()
