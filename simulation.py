@@ -48,11 +48,11 @@ for i in range(MAX_EPISODES):
     while not done:
         action = agent.select_action(state)
         next_state, reward, terminated, truncated, info = env.step(action)
+        done = terminated or truncated
         agent.update(state, action, reward, done, next_state)
         log_experience(state, action, reward, next_state, done)
         log_q_table()
         env.render()
-        done = terminated or truncated
         state = next_state
     agent.decay_epsilon()
 
