@@ -33,10 +33,10 @@ def log_q_table():
         f.write(str(agent.q_values))
         f.write("\n")
 
-done = False
 for i in range(MAX_EPISODES):
     print(f"Episode {i}")
     state, info = env.reset()
+    done = False
     while not done:
         action = agent.select_action(state)
         next_state, reward, terminated, truncated, info = env.step(action)
