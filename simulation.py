@@ -3,9 +3,9 @@ from gymnasium.wrappers import TimeLimit
 from gymnasium.wrappers import RecordVideo
 from agent import Agent
 
-EXPERIMENT_NAME = "taxi-q-learning"
-ENV_NAME = "Taxi-v3"
-LEARNING_METHOD = "q-learning"
+EXPERIMENT_NAME = "CliffWalking-sarsa"
+ENV_NAME = "CliffWalking-v0"
+LEARNING_METHOD = "sarsa"
 MAX_EPISODES = 5000
 MAX_STEPS = 100
 LEARNING_RATE = 0.1
