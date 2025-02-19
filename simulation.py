@@ -3,19 +3,20 @@ from gymnasium.wrappers import TimeLimit
 from gymnasium.wrappers import RecordVideo
 from agent import Agent
 
-EXPERIMENT_NAME = "taxi-low-alpha-high-gamma"
+EXPERIMENT_NAME = "taxi-q-learning"
 ENV_NAME = "Taxi-v3"
-MAX_EPISODES = 1000
-MAX_STEPS = 200
+LEARNING_METHOD = "q-learning"
+MAX_EPISODES = 5000
+MAX_STEPS = 100
 LEARNING_RATE = 0.1
-INITIAL_EPSILON = 1.0
-EPSILON_DECAY = INITIAL_EPSILON / (MAX_EPISODES / 2)
-FINAL_EPSILON = 0.01
-DISCOUNT_FACTOR = 0.95
+INITIAL_EPSILON = 0.1
+EPSILON_DECAY = 1
+FINAL_EPSILON = 0.1
+DISCOUNT_FACTOR = 0.99
 env = gym.make(ENV_NAME, render_mode="rgb_array").env
 env = TimeLimit(env, max_episode_steps=MAX_STEPS)
 env = RecordVideo(env, video_folder="videos", episode_trigger=lambda t: t % int(MAX_EPISODES/10) == 0)
-agent = Agent(env, LEARNING_RATE, INITIAL_EPSILON, EPSILON_DECAY, FINAL_EPSILON, DISCOUNT_FACTOR)
+agent = Agent(env, LEARNING_METHOD, LEARNING_RATE, INITIAL_EPSILON, EPSILON_DECAY, FINAL_EPSILON, DISCOUNT_FACTOR)
 
 def reset_log_files():
     with open(f"logging/{EXPERIMENT_NAME}-q_table.txt", "w") as f:

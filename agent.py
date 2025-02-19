@@ -7,6 +7,7 @@ class Agent:
     def __init__(
         self,
         env: gym.Env,
+        learning_method: str,
         learning_rate: float,
         initial_epsilon: float,
         epsilon_decay: float,
@@ -14,6 +15,7 @@ class Agent:
         discount_factor: float,
     ):
         self.env = env
+        self.learning_method = learning_method
         self.q_values = defaultdict(lambda: np.zeros(env.action_space.n))
         self.lr = learning_rate
         self.discount_factor = discount_factor
@@ -23,13 +25,25 @@ class Agent:
         self.training_error = []
 
     def select_action(self, obs: tuple[int, int, bool]) -> int:
+        if self.learning_method == "q-learning":
+            return self.select_action_q_learning(obs)
+        else:
+            raise ValueError(f"Learning method {self.learning_method} not supported")
+        
+    def update(self, obs: tuple[int, int, bool], action: int, reward: float, terminated: bool, next_obs: tuple[int, int, bool]):
+        if self.learning_method == "q-learning":
+            self.update_q_table(obs, action, reward, terminated, next_obs)
+        else:
+            raise ValueError(f"Learning method {self.learning_method} not supported")
+
+    def select_action_q_learning(self, obs: tuple[int, int, bool]) -> int:
         rv = random.uniform(0, 1)
         if rv < self.epsilon:
-            return self.env.action_space.sample() # Explore action space
+            return self.env.action_space.sample()
         else: 
-            return int(np.argmax(self.q_values[obs])) #Exploit learned values
+            return int(np.argmax(self.q_values[obs]))
 
-    def update(
+    def update_q_table(
         self,
         obs: tuple[int, int, bool],
         action: int,
