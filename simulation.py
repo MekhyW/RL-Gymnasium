@@ -3,8 +3,9 @@ from gymnasium.wrappers import TimeLimit
 from gymnasium.wrappers import RecordVideo
 from agent import Agent
 
-EXPERIMENT_NAME = "CliffWalking-sarsa"
-ENV_NAME = "CliffWalking-v0"
+EXPERIMENT_NAME = "FrozenLake-sarsa"
+ENV_NAME = "FrozenLake-v1"
+ENV_PARAMS = {'map_name': '4x4', 'is_slippery': True, 'render_mode': "rgb_array"}
 LEARNING_METHOD = "sarsa"
 MAX_EPISODES = 5000
 MAX_STEPS = 100
@@ -13,7 +14,7 @@ INITIAL_EPSILON = 0.1
 EPSILON_DECAY = 1
 FINAL_EPSILON = 0.1
 DISCOUNT_FACTOR = 0.99
-env = gym.make(ENV_NAME, render_mode="rgb_array").env
+env = gym.make(ENV_NAME, **ENV_PARAMS).env
 env = TimeLimit(env, max_episode_steps=MAX_STEPS)
 env = RecordVideo(env, video_folder="videos", episode_trigger=lambda t: t % int(MAX_EPISODES/10) == 0)
 agent = Agent(env, LEARNING_METHOD, LEARNING_RATE, INITIAL_EPSILON, EPSILON_DECAY, FINAL_EPSILON, DISCOUNT_FACTOR)
