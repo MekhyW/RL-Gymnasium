@@ -2,14 +2,15 @@ import gymnasium as gym
 from gymnasium.wrappers import TimeLimit
 from gymnasium.wrappers import RecordVideo
 from agent import Agent
+import numpy as np
 
-EXPERIMENT_NAME = "FrozenLake-sarsa"
-ENV_NAME = "FrozenLake-v1"
-ENV_PARAMS = {'map_name': '4x4', 'is_slippery': True, 'render_mode': "rgb_array"}
+EXPERIMENT_NAME = "MountainCar-sarsa"
+ENV_NAME = "MountainCar-v0"
+ENV_PARAMS = {'render_mode': "rgb_array"}
 LEARNING_METHOD = "sarsa"
-TRAINING_EPISODES = 5000
+TRAINING_EPISODES = 2000
 TESTING_EPISODES = 100
-MAX_STEPS = 200
+MAX_STEPS = 400
 LEARNING_RATE = 0.1
 INITIAL_EPSILON = 1.0
 EPSILON_DECAY = 0.995
@@ -35,23 +36,32 @@ def log_episodes(episode, accumulated_reward, length, is_training):
     with open(f"logging/{EXPERIMENT_NAME}-episodes.csv", "a") as f:
         f.write(f"{episode},{accumulated_reward},{length},{is_training}\n")
 
+def transform_state(state):
+    if isinstance(env.observation_space, gym.spaces.Box):
+        state_adj = (state - env.observation_space.low)*np.array([10, 100])
+        return np.round(state_adj, 0).astype(int)
+    else:
+        return state
+
 def run_episodes(env, agent, num_episodes, is_training, start_episode):
     if not is_training:
         agent.epsilon = 0
     for i in range(num_episodes):
         print(f"{"Training" if is_training else "Testing"} Episode {i}")
-        state, info = env.reset()
+        state, _ = env.reset()
+        state_adj = transform_state(state)
         done = False
         accumulated_reward = 0
         length = 0
         while not done:
-            action = agent.select_action(state)
-            next_state, reward, terminated, truncated, info = env.step(action)
+            action = agent.select_action(state_adj)
+            next_state, reward, terminated, truncated, _ = env.step(action)
+            next_state_adj = transform_state(next_state)
             done = terminated or truncated
             if is_training:
-                agent.update(state, action, reward, done, next_state)
+                agent.update(state_adj, action, reward, done, next_state_adj)
             env.render()
-            state = next_state
+            state_adj = next_state_adj
             accumulated_reward += reward
             length += 1
         log_episodes(start_episode + i, accumulated_reward, length, is_training)
