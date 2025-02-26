@@ -6,37 +6,39 @@ import numpy as np
 dfs = [pd.read_csv(f"logging/{file}") for file in os.listdir("logging") if file.endswith(".csv")]
 dfs_names = [file.split(".")[0] for file in os.listdir("logging") if file.endswith(".csv")]
 
-# First plot - Rewards
+# First plot - Rewards (Training episodes only)
 plt.figure(figsize=(12, 8))
 for df, name in zip(dfs, dfs_names):
-    rolling_reward = df["reward"].rolling(window=100).mean()
-    plt.plot(df["episode"], rolling_reward, label=name)
+    training_df = df[df['is_training'] == True]
+    rolling_reward = training_df["reward"].rolling(window=100).mean()
+    plt.plot(training_df["episode"], rolling_reward, label=name)
 plt.legend()
-plt.title("Running Average of Reward per Episode (window=100)")
+plt.title("Running Average of Training Reward per Episode (window=100)")
 plt.xlabel("Episode")
 plt.ylabel("Accumulated Reward")
 plt.savefig("plots/reward_plot.png", dpi=300, bbox_inches='tight')
 plt.show()
 plt.close()
 
-# Second plot - Steps
+# Second plot - Steps (Training episodes only)
 plt.figure(figsize=(12, 8))
 for df, name in zip(dfs, dfs_names):
-    rolling_steps = df["steps"].rolling(window=100).mean()
-    plt.plot(df["episode"], rolling_steps, label=name)
+    training_df = df[df['is_training'] == True]
+    rolling_steps = training_df["steps"].rolling(window=100).mean()
+    plt.plot(training_df["episode"], rolling_steps, label=name)
 plt.legend()
-plt.title("Running Average of Steps per Episode (window=100)")
+plt.title("Running Average of Training Steps per Episode (window=100)")
 plt.xlabel("Episode")
 plt.ylabel("Number of Steps")
 plt.savefig("plots/steps_plot.png", dpi=300, bbox_inches='tight')
 plt.show()
 plt.close()
 
-# Statistics for last 10% of episodes
+# Statistics for test episodes
 for df, name in zip(dfs, dfs_names):
-    last_10_percent = df.iloc[int(0.9 * len(df)):]
-    print(f"\nStatistics for {name} (last 10% of episodes):")
-    print(f"Average actions taken: {sum(last_10_percent['steps']) / len(last_10_percent):.2f}")
-    print(f"Standard deviation actions taken: {np.std(last_10_percent['steps']):.2f}")
-    print(f"Average rewards: {sum(last_10_percent['reward']) / len(last_10_percent):.2f}")
-    print(f"Standard deviation rewards: {np.std(last_10_percent['reward']):.2f}")
+    test_df = df[df['is_training'] == False]
+    print(f"\nTest Statistics for {name}:")
+    print(f"Average actions taken: {test_df['steps'].mean():.2f}")
+    print(f"Standard deviation actions taken: {test_df['steps'].std():.2f}")
+    print(f"Average rewards: {test_df['reward'].mean():.2f}")
+    print(f"Standard deviation rewards: {test_df['reward'].std():.2f}")
