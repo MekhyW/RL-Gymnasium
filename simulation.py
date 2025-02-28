@@ -4,14 +4,14 @@ from gymnasium.wrappers import RecordVideo
 from agent import Agent
 import numpy as np
 
-EXPERIMENT_NAME = "MountainCar-sarsa"
+EXPERIMENT_NAME = "MountainCar-sarsa-005-1-0995-03-099"
 ENV_NAME = "MountainCar-v0"
 ENV_PARAMS = {'render_mode': "rgb_array"}
 LEARNING_METHOD = "sarsa"
 TRAINING_EPISODES = 2000
 TESTING_EPISODES = 100
 MAX_STEPS = 400
-LEARNING_RATE = 0.1
+LEARNING_RATE = 0.05
 INITIAL_EPSILON = 1.0
 EPSILON_DECAY = 0.995
 FINAL_EPSILON = 0.3
