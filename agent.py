@@ -95,7 +95,7 @@ class Agent:
         self.training_error.append(temporal_difference)
 
     def decay_epsilon(self):
-        self.epsilon = max(self.final_epsilon, self.epsilon - self.epsilon_decay)
+        self.epsilon = max(self.final_epsilon, self.epsilon * self.epsilon_decay)
 
 if __name__ == "__main__":
     print("This is the agent module, to run the simulation, use simulation.py")
