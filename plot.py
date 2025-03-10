@@ -42,3 +42,4 @@ for df, name in zip(dfs, dfs_names):
     print(f"Standard deviation actions taken: {test_df['steps'].std():.2f}")
     print(f"Average rewards: {test_df['reward'].mean():.2f}")
     print(f"Standard deviation rewards: {test_df['reward'].std():.2f}")
+    print(f"Episodes with positive reward result: {test_df[test_df['reward'] > 0]['episode'].nunique()}/{len(test_df)}")

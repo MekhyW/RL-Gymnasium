@@ -4,14 +4,14 @@ from gymnasium.wrappers import RecordVideo
 from agent import Agent
 import numpy as np
 
-EXPERIMENT_NAME = "MountainCar-sarsa-005-1-0995-03-099"
-ENV_NAME = "MountainCar-v0"
-ENV_PARAMS = {'render_mode': "rgb_array"}
-LEARNING_METHOD = "sarsa"
+EXPERIMENT_NAME = "FrozenLake-qlearning-01-1-0995-03-099"
+ENV_NAME = "FrozenLake-v1"
+ENV_PARAMS = {'render_mode': "rgb_array", "map_name": "4x4", "is_slippery": True}
+LEARNING_METHOD = "q-learning"
 TRAINING_EPISODES = 2000
 TESTING_EPISODES = 100
-MAX_STEPS = 400
-LEARNING_RATE = 0.05
+MAX_STEPS = 100
+LEARNING_RATE = 0.1
 INITIAL_EPSILON = 1.0
 EPSILON_DECAY = 0.995
 FINAL_EPSILON = 0.3
