@@ -1,3 +1,4 @@
 swig
 gymnasium
 gymnasium[box2d]
+keras

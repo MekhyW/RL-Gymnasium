@@ -3,45 +3,62 @@ from gymnasium.wrappers import TimeLimit
 from gymnasium.wrappers import RecordVideo
 from agent import Agent
 import numpy as np
+import keras
 
-EXPERIMENT_NAME = "FrozenLake-qlearning-01-1-0995-03-099"
-ENV_NAME = "FrozenLake-v1"
-ENV_PARAMS = {'render_mode': "rgb_array", "map_name": "4x4", "is_slippery": True}
-LEARNING_METHOD = "q-learning"
-TRAINING_EPISODES = 2000
+EXPERIMENT_NAME = "CartPole-deep-q-learning"
+ENV_NAME = "CartPole-v1"
+ENV_PARAMS = {'render_mode': "rgb_array"}
+LEARNING_METHOD = "deep-q-learning"
+TRAINING_EPISODES = 1000
 TESTING_EPISODES = 100
-MAX_STEPS = 100
-LEARNING_RATE = 0.1
+MAX_STEPS = 500
+LEARNING_RATE = 0.001
 INITIAL_EPSILON = 1.0
-EPSILON_DECAY = 0.995
-FINAL_EPSILON = 0.3
+EPSILON_DECAY = 0.99
+FINAL_EPSILON = 0.01
 DISCOUNT_FACTOR = 0.99
+MEMORY_LENGTH = 10000 # Ignored for non-deep learning methods
+BATCH_SIZE = 64 # Ignored for non-deep learning methods
 env = gym.make(ENV_NAME, **ENV_PARAMS).env
 env = TimeLimit(env, max_episode_steps=MAX_STEPS)
 env = RecordVideo(env, video_folder="videos", episode_trigger=lambda t: t % int(TRAINING_EPISODES/10) == 0)
-agent = Agent(env, LEARNING_METHOD, LEARNING_RATE, INITIAL_EPSILON, EPSILON_DECAY, FINAL_EPSILON, DISCOUNT_FACTOR)
+agent = Agent(env, LEARNING_METHOD, LEARNING_RATE, INITIAL_EPSILON, EPSILON_DECAY, FINAL_EPSILON, DISCOUNT_FACTOR, MEMORY_LENGTH, BATCH_SIZE)
+np.random.seed(0)
 
 def reset_log_files():
-    with open(f"logging/{EXPERIMENT_NAME}-q_table.txt", "w") as f:
-        f.write("")
+    if LEARNING_METHOD == "deep-q-learning":
+        with open(f"logging/{EXPERIMENT_NAME}-model_weights.txt", "w") as f:
+            f.write("")
+    else:
+        with open(f"logging/{EXPERIMENT_NAME}-q_table.txt", "w") as f:
+            f.write("")
     with open(f"logging/{EXPERIMENT_NAME}-episodes.csv", "w") as f:
         f.write("episode,reward,steps,is_training\n")
 
-def log_q_table():
-    with open(f"logging/{EXPERIMENT_NAME}-q_table.txt", "a") as f:
-        f.write(str(agent.q_values))
-        f.write("\n")
+def log_q_table_weights():
+    if LEARNING_METHOD == "deep-q-learning":
+        with open(f"logging/{EXPERIMENT_NAME}-model_weights.txt", "a") as f:
+            f.write(str(agent.model.get_weights()).replace("\n", ""))
+            f.write("\n")
+    else:
+        with open(f"logging/{EXPERIMENT_NAME}-q_table.txt", "a") as f:
+            f.write(str(agent.q_values))
+            f.write("\n")
 
 def log_episodes(episode, accumulated_reward, length, is_training):
     with open(f"logging/{EXPERIMENT_NAME}-episodes.csv", "a") as f:
         f.write(f"{episode},{accumulated_reward},{length},{is_training}\n")
 
-def transform_state(state):
-    if isinstance(env.observation_space, gym.spaces.Box):
-        state_adj = (state - env.observation_space.low)*np.array([10, 100])
-        return np.round(state_adj, 0).astype(int)
-    else:
+def transform_state(state, env, num_states):
+    if not isinstance(env.observation_space, gym.spaces.Box):
         return state
+    obs_dims = env.observation_space.shape[0]
+    scaling_factors = np.ones(obs_dims) * 10
+    state_adj = (state - env.observation_space.low) * scaling_factors
+    state_adj = np.round(state_adj, 0).astype(int)
+    upper_bounds = num_states - 1
+    state_adj = np.clip(state_adj, 0, upper_bounds)
+    return state_adj
 
 def run_episodes(env, agent, num_episodes, is_training, start_episode):
     if not is_training:
@@ -49,14 +66,14 @@ def run_episodes(env, agent, num_episodes, is_training, start_episode):
     for i in range(num_episodes):
         print(f"{"Training" if is_training else "Testing"} Episode {i}")
         state, _ = env.reset()
-        state_adj = transform_state(state)
+        state_adj = transform_state(state, env, agent.num_states)
         done = False
         accumulated_reward = 0
         length = 0
         while not done:
             action = agent.select_action(state_adj)
             next_state, reward, terminated, truncated, _ = env.step(action)
-            next_state_adj = transform_state(next_state)
+            next_state_adj = transform_state(next_state, env, agent.num_states)
             done = terminated or truncated
             if is_training:
                 agent.update(state_adj, action, reward, done, next_state_adj)
@@ -67,7 +84,7 @@ def run_episodes(env, agent, num_episodes, is_training, start_episode):
         log_episodes(start_episode + i, accumulated_reward, length, is_training)
         if is_training:
             agent.decay_epsilon()
-            log_q_table()
+            log_q_table_weights()
 
 if __name__ == "__main__":
     reset_log_files()
@@ -77,3 +94,4 @@ if __name__ == "__main__":
     run_episodes(env, agent, TESTING_EPISODES, is_training=False, start_episode=TRAINING_EPISODES)
     print("Done!")
     env.close()
+    keras.backend.clear_session()
