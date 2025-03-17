@@ -3,7 +3,6 @@ from gymnasium.wrappers import TimeLimit
 from gymnasium.wrappers import RecordVideo
 from agent import Agent
 import numpy as np
-import keras
 
 EXPERIMENT_NAME = "CartPole-deep-q-learning"
 ENV_NAME = "CartPole-v1"
@@ -17,12 +16,13 @@ INITIAL_EPSILON = 1.0
 EPSILON_DECAY = 0.99
 FINAL_EPSILON = 0.01
 DISCOUNT_FACTOR = 0.99
-MEMORY_LENGTH = 10000 # Ignored for non-deep learning methods
-BATCH_SIZE = 64 # Ignored for non-deep learning methods
+MEMORY_LENGTH = 10000
+BATCH_SIZE = 64
+STEPS_PER_UPDATE = 10
 env = gym.make(ENV_NAME, **ENV_PARAMS).env
 env = TimeLimit(env, max_episode_steps=MAX_STEPS)
 env = RecordVideo(env, video_folder="videos", episode_trigger=lambda t: t % int(TRAINING_EPISODES/10) == 0)
-agent = Agent(env, LEARNING_METHOD, LEARNING_RATE, INITIAL_EPSILON, EPSILON_DECAY, FINAL_EPSILON, DISCOUNT_FACTOR, MEMORY_LENGTH, BATCH_SIZE)
+agent = Agent(env, LEARNING_METHOD, LEARNING_RATE, INITIAL_EPSILON, EPSILON_DECAY, FINAL_EPSILON, DISCOUNT_FACTOR, MEMORY_LENGTH, BATCH_SIZE, STEPS_PER_UPDATE)
 np.random.seed(0)
 
 def reset_log_files():
@@ -38,7 +38,10 @@ def reset_log_files():
 def log_q_table_weights():
     if LEARNING_METHOD == "deep-q-learning":
         with open(f"logging/{EXPERIMENT_NAME}-model_weights.txt", "a") as f:
-            f.write(str(agent.model.get_weights()).replace("\n", ""))
+            model_params = {}
+            for name, param in agent.model.named_parameters():
+                model_params[name] = param.data.detach().numpy()
+            f.write(str(model_params).replace("\n", ""))
             f.write("\n")
     else:
         with open(f"logging/{EXPERIMENT_NAME}-q_table.txt", "a") as f:
@@ -83,7 +86,7 @@ def run_episodes(env, agent, num_episodes, is_training, start_episode):
             length += 1
         log_episodes(start_episode + i, accumulated_reward, length, is_training)
         if is_training:
-            agent.decay_epsilon()
+            agent.decay_epsilon(i)
             log_q_table_weights()
 
 if __name__ == "__main__":
@@ -94,4 +97,3 @@ if __name__ == "__main__":
     run_episodes(env, agent, TESTING_EPISODES, is_training=False, start_episode=TRAINING_EPISODES)
     print("Done!")
     env.close()
-    keras.backend.clear_session()

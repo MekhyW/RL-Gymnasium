@@ -3,19 +3,19 @@ import gymnasium as gym
 import numpy as np
 import random
 from collections import deque
-from keras import Sequential
-from keras.layers import Dense
-from keras.activations import relu, linear
-from tensorflow.keras.optimizers import Adam
+import torch
+import torch.nn as nn
+import torch.optim as optim
 
-def initialize_deep_model(env, LEARNING_RATE):
-    model = Sequential()
-    model.add(Dense(512, activation=relu, input_dim=env.observation_space.shape[0]))
-    model.add(Dense(256, activation=relu))
-    model.add(Dense(env.action_space.n, activation=linear))
-    model.summary()
-    model.compile(loss='mse', optimizer=Adam(learning_rate=LEARNING_RATE))
-    return model
+class QNetwork(nn.Module):
+    def __init__(self, input_dim, output_dim):
+        torch.manual_seed(0)
+        super(QNetwork, self).__init__()
+        self.fc1 = nn.Linear(input_dim, 512)
+        self.out = nn.Linear(512, output_dim)
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        return self.out(x)
 
 class Agent:
     def __init__(
@@ -29,6 +29,7 @@ class Agent:
         discount_factor: float,
         memory_length: int,
         batch_size: int,
+        steps_per_update: int,
     ):
         self.env = env
         if isinstance(env.observation_space, gym.spaces.Box):
@@ -51,10 +52,16 @@ class Agent:
         self.epsilon_decay = epsilon_decay
         self.final_epsilon = final_epsilon
         self.training_error = []
+        self.steps_per_update = steps_per_update
         if self.learning_method == "deep-q-learning":
-            self.model = initialize_deep_model(env, learning_rate)
+            self.model = QNetwork(env.observation_space.shape[0], env.action_space.n)
             self.memory = deque(maxlen=memory_length)
             self.batch_size = batch_size
+            self.optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
+            self.loss_fn = nn.MSELoss()
+            self.target_model = QNetwork(env.observation_space.shape[0], env.action_space.n)
+            self.target_model.load_state_dict(self.model.state_dict())
+            self.target_model.eval()
 
     def select_action(self, state_adj: tuple[int, int, bool]) -> int:
         if self.learning_method in ["q-learning", "sarsa"]:
@@ -84,11 +91,15 @@ class Agent:
             return np.argmax(self.q_values[state_idx])
         return np.random.randint(0, self.env.action_space.n)
     
-    def select_action_deep_q_learning(self, state_adj: tuple[int, int, bool]) -> int:
+    def select_action_deep_q_learning(self, state: tuple[int, int, bool]) -> int:
         if np.random.rand() < self.epsilon:
             return random.randrange(self.env.action_space.n)
-        action = self.model.predict(state_adj, verbose=0)
-        return np.argmax(action[0])
+        state_tensor = torch.FloatTensor(state).unsqueeze(0)
+        self.model.eval()
+        with torch.no_grad():
+            q_values = self.model(state_tensor)
+        action = torch.argmax(q_values, dim=1).item()
+        return action
 
     def update_q_table(
         self,
@@ -129,27 +140,46 @@ class Agent:
         self.q_values[obs_idx][action] = (self.q_values[obs_idx][action] + self.lr * temporal_difference)
         self.training_error.append(temporal_difference)
 
-    def update_deep_q_learning(self, state, action, reward, next_state, terminal):
+    def experience(self, state, action, reward, next_state, terminal):
         self.memory.append((state, action, reward, next_state, terminal))
-        if len(self.memory) <= self.batch_size:
-            return
-        batch = random.sample(self.memory, self.batch_size) 
-        states = np.array([i[0] for i in batch])
-        actions = np.array([i[1] for i in batch])
-        rewards = np.array([i[2] for i in batch])
-        next_states = np.array([i[3] for i in batch])
-        terminals = np.array([i[4] for i in batch])
-        states = np.squeeze(states)
-        next_states = np.squeeze(next_states)
-        next_max = np.amax(self.model.predict_on_batch(next_states), axis=1)
-        targets = rewards + self.discount_factor * (next_max) * (1 - terminals)
-        targets_full = self.model.predict_on_batch(states)
-        indexes = np.array([i for i in range(self.batch_size)])
-        targets_full[[indexes], [actions]] = targets
-        self.model.fit(states, targets_full, epochs=1, verbose=0)
 
-    def decay_epsilon(self):
+    def experience_replay(self):
+        if len(self.memory) < self.batch_size:
+            return
+        batch = random.sample(self.memory, self.batch_size)
+        states = np.array([exp[0] for exp in batch])
+        actions = np.array([exp[1] for exp in batch])
+        rewards = np.array([exp[2] for exp in batch])
+        next_states = np.array([exp[3] for exp in batch])
+        terminals = np.array([exp[4] for exp in batch]).astype(np.uint8)
+        states_tensor = torch.FloatTensor(states).squeeze(1)         # shape: (batch_size, input_dim)
+        next_states_tensor = torch.FloatTensor(next_states).squeeze(1)  # shape: (batch_size, input_dim)
+        actions_tensor = torch.LongTensor(actions).unsqueeze(1)         # shape: (batch_size, 1)
+        rewards_tensor = torch.FloatTensor(rewards).unsqueeze(1)
+        terminals_tensor = torch.FloatTensor(terminals).unsqueeze(1)
+        self.model.train()
+        q_values = self.model(states_tensor)  # Expected shape: (batch_size, num_actions)
+        with torch.no_grad():
+            next_q_values = self.target_model(next_states_tensor) # Expected shape: (batch_size, num_actions)
+        next_max, _ = torch.max(next_q_values, dim=1, keepdim=True)
+        targets = rewards_tensor + self.discount_factor * next_max * (1 - terminals_tensor)
+        q_selected = torch.gather(q_values, 1, actions_tensor)
+        loss = self.loss_fn(q_selected, targets) # Compute the loss
+        self.optimizer.zero_grad() # Zero the gradients (PyTorch accumulates gradients by default)
+        loss.backward() # Compute the gradients
+        self.optimizer.step() # Update the weights
+        if self.epsilon > self.final_epsilon:
+            self.epsilon *= self.epsilon_decay
+
+    def update_deep_q_learning(self, state, action, reward, next_state, terminal):
+        self.experience(state, action, reward, next_state, terminal)
+        state = next_state
+        self.experience_replay()
+
+    def decay_epsilon(self, i):
         self.epsilon = max(self.final_epsilon, self.epsilon * self.epsilon_decay)
+        if i % self.steps_per_update == 0:
+            self.target_model.load_state_dict(self.model.state_dict())
 
 if __name__ == "__main__":
     print("This is the agent module, to run the simulation, use simulation.py")
