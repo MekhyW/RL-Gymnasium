@@ -9,13 +9,12 @@ import torch.optim as optim
 
 class QNetwork(nn.Module):
     def __init__(self, input_dim, output_dim):
-        torch.manual_seed(0)
         super(QNetwork, self).__init__()
-        self.fc1 = nn.Linear(input_dim, 512)
-        self.out = nn.Linear(512, output_dim)
+        self.fc1 = nn.Linear(input_dim, 64)
+        self.fc2 = nn.Linear(64, output_dim)
     def forward(self, x):
         x = torch.relu(self.fc1(x))
-        return self.out(x)
+        return self.fc2(x)
 
 class Agent:
     def __init__(
@@ -32,6 +31,7 @@ class Agent:
         steps_per_update: int,
     ):
         self.env = env
+        self.learning_method = learning_method
         if isinstance(env.observation_space, gym.spaces.Box):
             obs_dims = env.observation_space.shape[0]
             scaling_factors = np.ones(obs_dims) * 10
@@ -41,11 +41,10 @@ class Agent:
             self.num_states = np.round(self.num_states, 0).astype(int) + 1
             self.num_states = np.maximum(self.num_states, 1)
             print("NUMBER OF STATES: ", self.num_states)
-            self.q_values = np.zeros([*self.num_states, env.action_space.n])
+            self.q_values = np.zeros([*self.num_states, env.action_space.n]) if self.learning_method in ["q-learning", "sarsa"] else None
         else:
             self.num_states = env.observation_space.n
-            self.q_values = defaultdict(lambda: np.zeros(env.action_space.n))
-        self.learning_method = learning_method
+            self.q_values = defaultdict(lambda: np.zeros(env.action_space.n)) if self.learning_method in ["q-learning", "sarsa"] else None
         self.lr = learning_rate
         self.discount_factor = discount_factor
         self.epsilon = initial_epsilon
@@ -153,23 +152,22 @@ class Agent:
         next_states = np.array([exp[3] for exp in batch])
         terminals = np.array([exp[4] for exp in batch]).astype(np.uint8)
         states_tensor = torch.FloatTensor(states).squeeze(1)         # shape: (batch_size, input_dim)
-        next_states_tensor = torch.FloatTensor(next_states).squeeze(1)  # shape: (batch_size, input_dim)
-        actions_tensor = torch.LongTensor(actions).unsqueeze(1)         # shape: (batch_size, 1)
+        next_states_tensor = torch.FloatTensor(next_states).squeeze(1)   # shape: (batch_size, input_dim)
+        actions_tensor = torch.LongTensor(actions).unsqueeze(1)          # shape: (batch_size, 1)
         rewards_tensor = torch.FloatTensor(rewards).unsqueeze(1)
         terminals_tensor = torch.FloatTensor(terminals).unsqueeze(1)
         self.model.train()
-        q_values = self.model(states_tensor)  # Expected shape: (batch_size, num_actions)
+        q_values = self.model(states_tensor)
         with torch.no_grad():
-            next_q_values = self.target_model(next_states_tensor) # Expected shape: (batch_size, num_actions)
-        next_max, _ = torch.max(next_q_values, dim=1, keepdim=True)
-        targets = rewards_tensor + self.discount_factor * next_max * (1 - terminals_tensor)
+            next_actions = torch.argmax(self.model(next_states_tensor), dim=1, keepdim=True)
+            next_q_values_target = self.target_model(next_states_tensor)
+            next_q_values = torch.gather(next_q_values_target, 1, next_actions)
+        targets = rewards_tensor + self.discount_factor * next_q_values * (1 - terminals_tensor)
         q_selected = torch.gather(q_values, 1, actions_tensor)
-        loss = self.loss_fn(q_selected, targets) # Compute the loss
-        self.optimizer.zero_grad() # Zero the gradients (PyTorch accumulates gradients by default)
-        loss.backward() # Compute the gradients
-        self.optimizer.step() # Update the weights
-        if self.epsilon > self.final_epsilon:
-            self.epsilon *= self.epsilon_decay
+        loss = self.loss_fn(q_selected, targets)
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
 
     def update_deep_q_learning(self, state, action, reward, next_state, terminal):
         self.experience(state, action, reward, next_state, terminal)

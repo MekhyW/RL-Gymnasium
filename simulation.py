@@ -4,8 +4,8 @@ from gymnasium.wrappers import RecordVideo
 from agent import Agent
 import numpy as np
 
-EXPERIMENT_NAME = "CartPole-deep-q-learning"
-ENV_NAME = "CartPole-v1"
+EXPERIMENT_NAME = "LunarLander-deep-q-learning"
+ENV_NAME = "LunarLander-v3"
 ENV_PARAMS = {'render_mode': "rgb_array"}
 LEARNING_METHOD = "deep-q-learning"
 TRAINING_EPISODES = 1000
@@ -14,10 +14,10 @@ MAX_STEPS = 500
 LEARNING_RATE = 0.001
 INITIAL_EPSILON = 1.0
 EPSILON_DECAY = 0.99
-FINAL_EPSILON = 0.01
+FINAL_EPSILON = 0.001
 DISCOUNT_FACTOR = 0.99
 MEMORY_LENGTH = 10000
-BATCH_SIZE = 64
+BATCH_SIZE = 128
 STEPS_PER_UPDATE = 10
 env = gym.make(ENV_NAME, **ENV_PARAMS).env
 env = TimeLimit(env, max_episode_steps=MAX_STEPS)
