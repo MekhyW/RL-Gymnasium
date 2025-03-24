@@ -8,17 +8,17 @@ EXPERIMENT_NAME = "LunarLander-deep-q-learning"
 ENV_NAME = "LunarLander-v3"
 ENV_PARAMS = {'render_mode': "rgb_array"}
 LEARNING_METHOD = "deep-q-learning"
-TRAINING_EPISODES = 2000
+TRAINING_EPISODES = 5000
 TESTING_EPISODES = 100
-MAX_STEPS = 500
+MAX_STEPS = 1000
 LEARNING_RATE = 0.001
 INITIAL_EPSILON = 1.0
-EPSILON_DECAY = 0.996
+EPSILON_DECAY = 0.999
 FINAL_EPSILON = 0.01
 DISCOUNT_FACTOR = 0.99
-MEMORY_LENGTH = 1000000
+MEMORY_LENGTH = 100000
 BATCH_SIZE = 128
-STEPS_PER_UPDATE = 100
+STEPS_PER_UPDATE = 50
 env = gym.make(ENV_NAME, **ENV_PARAMS).env
 env = TimeLimit(env, max_episode_steps=MAX_STEPS)
 env = RecordVideo(env, video_folder="videos", episode_trigger=lambda t: t % int(TRAINING_EPISODES/10) == 0)
