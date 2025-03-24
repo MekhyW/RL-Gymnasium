@@ -3,6 +3,7 @@ from gymnasium.wrappers import TimeLimit
 from gymnasium.wrappers import RecordVideo
 from agent import Agent
 import numpy as np
+import torch
 
 EXPERIMENT_NAME = "LunarLander-deep-q-learning"
 ENV_NAME = "LunarLander-v3"
@@ -93,6 +94,9 @@ if __name__ == "__main__":
     reset_log_files()
     print("Training...")
     run_episodes(env, agent, TRAINING_EPISODES, is_training=True, start_episode=0)
+    if LEARNING_METHOD == "deep-q-learning":
+        print("Saving model weights...")
+        torch.save(agent.model.state_dict(), f"logging/{EXPERIMENT_NAME}-model_weights.pt")
     print("Testing...")
     run_episodes(env, agent, TESTING_EPISODES, is_training=False, start_episode=TRAINING_EPISODES)
     print("Done!")
