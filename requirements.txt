@@ -2,3 +2,4 @@ swig
 gymnasium
 gymnasium[box2d]
 torch
+stable-baselines3

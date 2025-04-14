@@ -6,6 +6,10 @@ from collections import deque
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.utils import deterministic
+from stable_baselines3 import DQN, A2C
+from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.vec_env import DummyVecEnv
 
 class QNetwork(nn.Module):
     def __init__(self, input_dim, output_dim):
@@ -63,12 +67,20 @@ class Agent:
             self.target_model = QNetwork(env.observation_space.shape[0], env.action_space.n)
             self.target_model.load_state_dict(self.model.state_dict())
             self.target_model.eval()
+        elif self.learning_method == "a2c":
+            self.model = A2C("MlpPolicy", DummyVecEnv([lambda: Monitor(env)]), gamma=discount_factor, learning_rate=learning_rate, verbose=1)
+        elif self.learning_method == "dqn":
+            self.model = DQN("MlpPolicy", DummyVecEnv([lambda: Monitor(env)]), gamma=discount_factor, learning_rate=learning_rate, verbose=1, exploration_initial_eps=initial_epsilon, exploration_final_eps=final_epsilon, exploration_fraction=epsilon_decay, batch_size=batch_size, buffer_size=memory_length, verbose=1)
+        else:
+            raise ValueError(f"Learning method {self.learning_method} not supported")
 
     def select_action(self, state_adj: tuple[int, int, bool]) -> int:
         if self.learning_method in ["q-learning", "sarsa"]:
             return self.select_action_epsilon_greedy(state_adj)
         elif self.learning_method == "deep-q-learning":
             return self.select_action_deep_q_learning(state_adj)
+        elif self.learning_method in ["a2c", "dqn"]:
+            return self.model.predict(state_adj, deterministic=False)[0]
         else:
             raise ValueError(f"Learning method {self.learning_method} not supported")
         
@@ -180,6 +192,8 @@ class Agent:
         self.epsilon = max(self.final_epsilon, self.epsilon * self.epsilon_decay)
         if i % self.steps_per_update == 0:
             self.target_model.load_state_dict(self.model.state_dict())
+        if self.learning_method in ["a2c", "dqn"]:
+            self.model.learn(total_timesteps=self.steps_per_update, reset_num_timesteps=False)
 
 if __name__ == "__main__":
     print("This is the agent module, to run the simulation, use simulation.py")
